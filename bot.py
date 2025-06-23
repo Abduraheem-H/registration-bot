@@ -360,7 +360,6 @@ def main():
             await application.run_webhook(
                 listen="0.0.0.0",
                 port=WEBHOOK_PORT,
-                path=f"/{TOKEN}",
                 webhook_url=WEBHOOK_URL,
             )
             print("🚀 Bot is running via webhook.")
