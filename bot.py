@@ -350,15 +350,22 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
 
     async def run():
-        await application.bot.set_webhook(WEBHOOK_URL)
-        print(f"🌐 Webhook set to: {WEBHOOK_URL}")
+        try:
+            await application.bot.set_webhook(WEBHOOK_URL)
+            print(f"🌐 Webhook set to: {WEBHOOK_URL}")
+        except Exception as e:
+            print(f"⚠️ Failed to set webhook: {e}")
 
-        await application.run_webhook(
-            listen="0.0.0.0",
-            port=WEBHOOK_PORT,
-            path=f"/{TOKEN}",
-            webhook_url=WEBHOOK_URL,
-        )
+        try:
+            await application.run_webhook(
+                listen="0.0.0.0",
+                port=WEBHOOK_PORT,
+                path=f"/{TOKEN}",
+                webhook_url=WEBHOOK_URL,
+            )
+            print("🚀 Bot is running via webhook.")
+        except Exception as e:
+            print(f"⚠️ Webhook run error: {e}")
 
     asyncio.run(run())
 
