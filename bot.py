@@ -305,10 +305,7 @@ WEBHOOK_PORT = int(os.environ.get("PORT", 10000))  # Render sets this automatica
 WEBHOOK_URL = f"https://registration-bot-xhth.onrender.com/{TOKEN}"
 
 
-import asyncio
-
-
-def main():
+async def main():
     initialize_excel()
 
     application = Application.builder().token(TOKEN).build()
@@ -349,25 +346,17 @@ def main():
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
 
-    async def run():
-        try:
-            await application.bot.set_webhook(WEBHOOK_URL)
-            print(f"🌐 Webhook set to: {WEBHOOK_URL}")
-        except Exception as e:
-            print(f"⚠️ Failed to set webhook: {e}")
+    await application.bot.set_webhook(WEBHOOK_URL)
+    print(f"🌐 Webhook set to: {WEBHOOK_URL}")
 
-        try:
-            await application.run_webhook(
-                listen="0.0.0.0",
-                port=WEBHOOK_PORT,
-                webhook_url=WEBHOOK_URL,
-            )
-            print("🚀 Bot is running via webhook.")
-        except Exception as e:
-            print(f"⚠️ Webhook run error: {e}")
-
-    asyncio.run(run())
+    await application.run_webhook(
+        listen="0.0.0.0",
+        port=WEBHOOK_PORT,
+        webhook_url=WEBHOOK_URL,
+    )
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())
