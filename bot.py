@@ -302,9 +302,7 @@ TOKEN = TOKEN = os.getenv("BOT_TOKEN")
 # === Webhook Config ===
 WEBHOOK_PATH = f"/{TOKEN}"
 WEBHOOK_PORT = int(os.environ.get("PORT", 10000))  # Render sets this automatically
-WEBHOOK_URL = (
-    f"https://<your-render-service-name>.onrender.com/{TOKEN}"  # 🔁 Update this
-)
+WEBHOOK_URL = f"https://registration-bot-xhth.onrender.com/{TOKEN}"
 
 
 def main():
