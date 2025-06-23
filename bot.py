@@ -353,16 +353,12 @@ def main():
         await application.bot.set_webhook(WEBHOOK_URL)
         print(f"🌐 Webhook set to: {WEBHOOK_URL}")
 
-        await application.start()
-        await application.updater.start_webhook(
+        await application.run_webhook(
             listen="0.0.0.0",
             port=WEBHOOK_PORT,
-            url_path=TOKEN,
+            path=f"/{TOKEN}",
             webhook_url=WEBHOOK_URL,
         )
-
-        print("🚀 Bot is now running via webhook on Render.")
-        await application.updater.idle()
 
     asyncio.run(run())
 
