@@ -305,35 +305,13 @@ WEBHOOK_PORT = int(os.environ.get("PORT", 10000))  # Render sets this automatica
 WEBHOOK_URL = f"https://registration-bot-xhth.onrender.com/{TOKEN}"
 
 
+import asyncio
+
+
 def main():
-    application = Application.builder().token(TOKEN).build()
-
-    # Attach your handlers here
-    application.add_handler(conv_handler)
-    application.add_handler(CommandHandler("help", help_command))
-
-    # Async runner
-    async def run():
-        await application.bot.set_webhook(WEBHOOK_URL)
-        print(f"🌐 Webhook set to: {WEBHOOK_URL}")
-
-        await application.start()
-        await application.updater.start_webhook(
-            listen="0.0.0.0", port=WEBHOOK_PORT, url_path=TOKEN, webhook_url=WEBHOOK_URL
-        )
-
-        print("🚀 Bot is now running via webhook on Render.")
-        await application.updater.idle()
-
-    asyncio.run(run())
-
     initialize_excel()
 
-    app = (
-        Application.builder()
-        .token("5987364396:AAF9Mxit0S5EZw8sUFB8HwAUNiJEhQkmaNI")
-        .build()
-    )
+    application = Application.builder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -366,14 +344,27 @@ def main():
             CommandHandler("quit", quit_registration),
             CommandHandler("help", help_command),
         ],
-        # ❌ REMOVE THIS: per_message=True
     )
 
-    app.add_handler(conv_handler)
-    app.add_handler(CommandHandler("help", help_command))
+    application.add_handler(conv_handler)
+    application.add_handler(CommandHandler("help", help_command))
 
-    print("🚀 Bot is now running. Press Ctrl+C to stop.")
-    app.run_polling()
+    async def run():
+        await application.bot.set_webhook(WEBHOOK_URL)
+        print(f"🌐 Webhook set to: {WEBHOOK_URL}")
+
+        await application.start()
+        await application.updater.start_webhook(
+            listen="0.0.0.0",
+            port=WEBHOOK_PORT,
+            url_path=TOKEN,
+            webhook_url=WEBHOOK_URL,
+        )
+
+        print("🚀 Bot is now running via webhook on Render.")
+        await application.updater.idle()
+
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
