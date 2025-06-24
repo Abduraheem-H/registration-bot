@@ -290,23 +290,48 @@ async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # === Main Function ===
 
-
-import asyncio
-
-
-# Use your actual bot token here
-
-TOKEN = TOKEN = os.getenv("BOT_TOKEN")
-
+# Get environment variables
+# It's better to get TOKEN inside main() if it's not a global constant
+# TOKEN = os.getenv("BOT_TOKEN") # This is better inside main or as a global read-only
 
 # === Webhook Config ===
-WEBHOOK_PATH = f"/{TOKEN}"
-WEBHOOK_PORT = int(os.environ.get("PORT", 10000))  # Render sets this automatically
-WEBHOOK_URL = f"https://registration-bot-xhth.onrender.com/{TOKEN}"
+# These should be defined inside main() or passed as arguments,
+# as RENDER_EXTERNAL_URL is not available globally at import time.
+# WEBHOOK_PATH = f"/{TOKEN}" # Will be None if TOKEN is not set yet
+# WEBHOOK_PORT = int(os.environ.get("PORT", 10000))
+# WEBHOOK_URL = f"https://registration-bot-xhth.onrender.com/{TOKEN}" # Hardcoded URL
 
 
-async def main():
+def main():  # Changed from async def main() to def main()
     initialize_excel()
+
+    # Retrieve environment variables within main()
+    TOKEN = os.environ.get(
+        "BOT_TOKEN"
+    )  # Use TELEGRAM_BOT_TOKEN as a standard env var name
+    RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
+    PORT = int(os.environ.get("PORT", 10000))  # Render's default HTTP port is 10000
+
+    if not TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN environment variable not set. Exiting.")
+        return  # Exit if no token
+
+    if not RENDER_EXTERNAL_URL:
+        logger.warning(
+            "RENDER_EXTERNAL_URL environment variable not set. Webhook URL might be incorrect for Render."
+        )
+        # Fallback for local testing, but crucial for Render
+        # You might want to raise an error or have a specific fallback for production
+        RENDER_EXTERNAL_URL = (
+            "http://localhost:5000"  # Example fallback for local testing
+        )
+
+    # === Webhook Config (defined within main) ===
+    # The url_path should be unique for your bot. Using the token is a common secure practice.
+    url_path = TOKEN  # This is the specific path the local web server will listen on
+    webhook_full_url = (
+        f"{RENDER_EXTERNAL_URL}/{url_path}"  # This is the URL Telegram will be set to
+    )
 
     application = Application.builder().token(TOKEN).build()
 
@@ -346,19 +371,27 @@ async def main():
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
 
-    await application.bot.set_webhook(WEBHOOK_URL)
-    print(f"🌐 Webhook set to: {WEBHOOK_URL}")
+    # Set we bhook with Telegram (this is an async call, so it's awaited by run_webhook internally)
+    # The `webhook_url` argument here is the full URL Telegram should call.
+    # It's handled by `application.run_webhook` below.
+    # You generally don't need to call set_webhook explicitly *before* run_webhook
+    # as run_webhook handles this. But it's harmless if called like this.
+    # await application.bot.set_webhook(webhook_full_url)
+    # logger.info(f"🌐 Webhook explicitly set to: {webhook_full_url}") # Changed from print
 
-    await application.run_webhook(
+    # This is the main blocking call that starts the web server and keeps the bot running
+    # It handles setting the webhook with Telegram and listening for updates.
+    logger.info(f"Starting webhook server on 0.0.0.0:{PORT} for path /{url_path}")
+    application.run_webhook(
         listen="0.0.0.0",
-        port=WEBHOOK_PORT,
-        webhook_url=WEBHOOK_URL,
+        port=PORT,
+        url_path=url_path,  # This tells the local server which path to listen on
+        webhook_url=webhook_full_url,  # This tells Telegram where to send updates
     )
+    logger.info("Webhook server started successfully.")
 
 
 if __name__ == "__main__":
-    import nest_asyncio
-    import asyncio
-
-    nest_asyncio.apply()
-    asyncio.get_event_loop().run_until_complete(main())
+    # Removed nest_asyncio and direct asyncio event loop management.
+    # application.run_webhook() is a blocking call and manages its own loop.
+    main()
