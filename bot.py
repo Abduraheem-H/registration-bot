@@ -3,12 +3,7 @@ import re
 import logging
 import openpyxl
 from datetime import datetime
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    BotCommand,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -19,13 +14,11 @@ from telegram.ext import (
     filters,
 )
 
-# === Logging Setup ===
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s: %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# === States ===
 (
     NAME,
     PHONE,
@@ -43,9 +36,10 @@ logger = logging.getLogger(__name__)
     CONFIRM,
 ) = range(14)
 
-# === File & Folder Setup ===
-EXCEL_FILE = "summer_skills_tutors.xlsx"
-PORTFOLIO_FOLDER = "portfolios"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_FILE = os.path.join(BASE_DIR, "summer_skills_tutors.xlsx")
+PORTFOLIO_FOLDER = os.path.join(BASE_DIR, "portfolios")
+
 os.makedirs(PORTFOLIO_FOLDER, exist_ok=True)
 
 HEADERS = [
@@ -66,14 +60,15 @@ HEADERS = [
 
 
 def initialize_excel():
+    logger.info("📄 Checking for Excel file at: %s", EXCEL_FILE)
     if not os.path.exists(EXCEL_FILE):
+        logger.info("🆕 Creating new Excel file...")
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.append(HEADERS)
         wb.save(EXCEL_FILE)
-
-
-# === Handler Functions ===
+    else:
+        logger.info("✅ Excel file already exists.")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -90,7 +85,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "📋 Available commands:\n"
         "/start - Begin registration\n"
         "/restart - Restart registration\n"
         "/quit - Cancel registration\n"
@@ -99,9 +93,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def start_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text("✍️ What's your Full Name?")
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text("✍️ What's your Full Name?")
     return NAME
 
 
@@ -111,9 +104,8 @@ async def restart_registration(
     context.user_data.clear()
     message = "🔁 Restarting registration. Please enter your Full Name:"
     if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        await query.edit_message_text(message)
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(message)
     else:
         await update.message.reply_text(message)
     return NAME
@@ -123,9 +115,8 @@ async def quit_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data.clear()
     message = "❌ Registration cancelled."
     if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        await query.edit_message_text(message)
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(message)
     else:
         await update.message.reply_text(message)
     return ConversationHandler.END
@@ -133,7 +124,7 @@ async def quit_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["Full Name"] = update.message.text.strip()
-    await update.message.reply_text("📞 Your Phone Number (e.g., 0912345678):")
+    await update.message.reply_text("📲 Your Phone Number (e.g., 0912345678):")
     return PHONE
 
 
@@ -147,7 +138,7 @@ async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         [
             InlineKeyboardButton("Male", callback_data="Male"),
             InlineKeyboardButton("Female", callback_data="Female"),
-        ],
+        ]
     ]
     await update.message.reply_text(
         "⚧️ Select Gender:", reply_markup=InlineKeyboardMarkup(keyboard)
@@ -156,10 +147,9 @@ async def phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def gender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    context.user_data["Gender"] = q.data
-    await q.edit_message_text("📅 Date of Birth (dd/mm/yyyy):")
+    await update.callback_query.answer()
+    context.user_data["Gender"] = update.callback_query.data
+    await update.callback_query.edit_message_text("📅 Date of Birth (dd/mm/yyyy):")
     return DOB
 
 
@@ -175,7 +165,7 @@ async def dob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         [
             InlineKeyboardButton("Graduate", callback_data="Graduate"),
             InlineKeyboardButton("Student", callback_data="Student"),
-        ],
+        ]
     ]
     await update.message.reply_text(
         "🎓 Profession:", reply_markup=InlineKeyboardMarkup(keyboard)
@@ -184,14 +174,13 @@ async def dob(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def profession(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    context.user_data["Profession"] = q.data
-    if q.data == "Student":
-        await q.edit_message_text("📘 Year of Study:")
+    await update.callback_query.answer()
+    context.user_data["Profession"] = update.callback_query.data
+    if update.callback_query.data == "Student":
+        await update.callback_query.edit_message_text("📘 Year of Study:")
         return YEAR
     context.user_data["Year of Study"] = "-"
-    await q.edit_message_text("📍 Residence Area:")
+    await update.callback_query.edit_message_text("📍 Residence Area:")
     return RESIDENCE
 
 
@@ -259,9 +248,8 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def experience(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    context.user_data["Tutoring Experience"] = q.data
+    await update.callback_query.answer()
+    context.user_data["Tutoring Experience"] = update.callback_query.data
     summary = "\n".join(f"{k}: {v}" for k, v in context.user_data.items())
     keyboard = [
         [
@@ -269,129 +257,81 @@ async def experience(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             InlineKeyboardButton("🔁 Restart", callback_data="restart"),
         ]
     ]
-    await q.edit_message_text(
+    await update.callback_query.edit_message_text(
         f"✔️ Review:\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return CONFIRM
 
 
 async def confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    if q.data == "submit":
-        wb = openpyxl.load_workbook(EXCEL_FILE)
-        ws = wb.active
-        ws.append([context.user_data.get(h, "") for h in HEADERS])
-        wb.save(EXCEL_FILE)
-        await q.edit_message_text("✅ Thank you! Registration submitted.")
+    await update.callback_query.answer()
+    if update.callback_query.data == "submit":
+        try:
+            logger.info("📥 Saving user data: %s", context.user_data)
+            wb = openpyxl.load_workbook(EXCEL_FILE)
+            ws = wb.active
+            ws.append([context.user_data.get(h, "") for h in HEADERS])
+            wb.save(EXCEL_FILE)
+            logger.info("✅ Excel updated successfully.")
+        except Exception as e:
+            logger.error("❌ Failed to write to Excel: %s", e)
+        await update.callback_query.edit_message_text(
+            "✅ Thank you! Registration submitted."
+        )
         return ConversationHandler.END
     return await restart_registration(update, context)
 
 
-# === Main Function ===
+# --- Polling-based main function (no Flask) ---
 
-# Get environment variables
-# It's better to get TOKEN inside main() if it's not a global constant
-# TOKEN = os.getenv("BOT_TOKEN") # This is better inside main or as a global read-only
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    logger.error("BOT_TOKEN environment variable not set.")
+    exit(1)
 
-# === Webhook Config ===
-# These should be defined inside main() or passed as arguments,
-# as RENDER_EXTERNAL_URL is not available globally at import time.
-# WEBHOOK_PATH = f"/{TOKEN}" # Will be None if TOKEN is not set yet
-# WEBHOOK_PORT = int(os.environ.get("PORT", 10000))
-# WEBHOOK_URL = f"https://registration-bot-xhth.onrender.com/{TOKEN}" # Hardcoded URL
+application = Application.builder().token(TOKEN).build()
+
+conv_handler = ConversationHandler(
+    entry_points=[
+        CommandHandler("start", start),
+        CallbackQueryHandler(start_registration, pattern="^start_reg$"),
+        CallbackQueryHandler(restart_registration, pattern="^restart$"),
+        CallbackQueryHandler(quit_registration, pattern="^quit$"),
+    ],
+    states={
+        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name)],
+        PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
+        GENDER: [CallbackQueryHandler(gender)],
+        DOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, dob)],
+        PROFESSION: [CallbackQueryHandler(profession)],
+        YEAR: [MessageHandler(filters.TEXT & ~filters.COMMAND, year)],
+        RESIDENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, residence)],
+        LOCATIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, locations)],
+        FIELD: [MessageHandler(filters.TEXT & ~filters.COMMAND, field)],
+        SKILLS: [MessageHandler(filters.TEXT & ~filters.COMMAND, skills)],
+        LANGUAGES: [MessageHandler(filters.TEXT & ~filters.COMMAND, languages)],
+        PORTFOLIO: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, portfolio),
+            MessageHandler(filters.Document.ALL | filters.PHOTO, portfolio),
+        ],
+        EXPERIENCE: [CallbackQueryHandler(experience)],
+        CONFIRM: [CallbackQueryHandler(confirm)],
+    },
+    fallbacks=[
+        CommandHandler("restart", restart_registration),
+        CommandHandler("quit", quit_registration),
+        CommandHandler("help", help_command),
+    ],
+)
+
+application.add_handler(conv_handler)
+application.add_handler(CommandHandler("help", help_command))
 
 
-def main():  # Changed from async def main() to def main()
+def main():
     initialize_excel()
-
-    # Retrieve environment variables within main()
-    TOKEN = os.environ.get(
-        "BOT_TOKEN"
-    )  # Use TELEGRAM_BOT_TOKEN as a standard env var name
-    RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL")
-    PORT = int(os.environ.get("PORT", 10000))  # Render's default HTTP port is 10000
-
-    if not TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN environment variable not set. Exiting.")
-        return  # Exit if no token
-
-    if not RENDER_EXTERNAL_URL:
-        logger.warning(
-            "RENDER_EXTERNAL_URL environment variable not set. Webhook URL might be incorrect for Render."
-        )
-        # Fallback for local testing, but crucial for Render
-        # You might want to raise an error or have a specific fallback for production
-        RENDER_EXTERNAL_URL = (
-            "http://localhost:5000"  # Example fallback for local testing
-        )
-
-    # === Webhook Config (defined within main) ===
-    # The url_path should be unique for your bot. Using the token is a common secure practice.
-    url_path = TOKEN  # This is the specific path the local web server will listen on
-    webhook_full_url = (
-        f"{RENDER_EXTERNAL_URL}/{url_path}"  # This is the URL Telegram will be set to
-    )
-
-    application = Application.builder().token(TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("start", start),
-            CallbackQueryHandler(start_registration, pattern="^start_reg$"),
-            CallbackQueryHandler(restart_registration, pattern="^restart$"),
-            CallbackQueryHandler(quit_registration, pattern="^quit$"),
-        ],
-        states={
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name)],
-            PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, phone)],
-            GENDER: [CallbackQueryHandler(gender)],
-            DOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, dob)],
-            PROFESSION: [CallbackQueryHandler(profession)],
-            YEAR: [MessageHandler(filters.TEXT & ~filters.COMMAND, year)],
-            RESIDENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, residence)],
-            LOCATIONS: [MessageHandler(filters.TEXT & ~filters.COMMAND, locations)],
-            FIELD: [MessageHandler(filters.TEXT & ~filters.COMMAND, field)],
-            SKILLS: [MessageHandler(filters.TEXT & ~filters.COMMAND, skills)],
-            LANGUAGES: [MessageHandler(filters.TEXT & ~filters.COMMAND, languages)],
-            PORTFOLIO: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, portfolio),
-                MessageHandler(filters.Document.ALL | filters.PHOTO, portfolio),
-            ],
-            EXPERIENCE: [CallbackQueryHandler(experience)],
-            CONFIRM: [CallbackQueryHandler(confirm)],
-        },
-        fallbacks=[
-            CommandHandler("restart", restart_registration),
-            CommandHandler("quit", quit_registration),
-            CommandHandler("help", help_command),
-        ],
-    )
-
-    application.add_handler(conv_handler)
-    application.add_handler(CommandHandler("help", help_command))
-
-    # Set we bhook with Telegram (this is an async call, so it's awaited by run_webhook internally)
-    # The `webhook_url` argument here is the full URL Telegram should call.
-    # It's handled by `application.run_webhook` below.
-    # You generally don't need to call set_webhook explicitly *before* run_webhook
-    # as run_webhook handles this. But it's harmless if called like this.
-    # await application.bot.set_webhook(webhook_full_url)
-    # logger.info(f"🌐 Webhook explicitly set to: {webhook_full_url}") # Changed from print
-
-    # This is the main blocking call that starts the web server and keeps the bot running
-    # It handles setting the webhook with Telegram and listening for updates.
-    logger.info(f"Starting webhook server on 0.0.0.0:{PORT} for path /{url_path}")
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=url_path,  # This tells the local server which path to listen on
-        webhook_url=webhook_full_url,  # This tells Telegram where to send updates
-    )
-    logger.info("Webhook server started successfully.")
+    application.run_polling()
 
 
 if __name__ == "__main__":
-    # Removed nest_asyncio and direct asyncio event loop management.
-    # application.run_webhook() is a blocking call and manages its own loop.
     main()
